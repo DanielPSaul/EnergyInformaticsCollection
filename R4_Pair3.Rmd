@@ -1,0 +1,193 @@
+---
+title: 'R4 Assignment: Optimization & Prescriptive Analytics'
+author: "Daniel Saul & Michael Morgan"
+date: "11/18/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Prepare Data & Files
+```{r}
+# Download required packages
+library(tidyverse)
+library(knitr)
+library(lubridate)
+library(tinytex)
+library(lpSolveAPI)
+library(TSP)
+library(ggmap)
+library(mapproj)
+library(measurements)
+library(googleway)
+```
+
+# A. Small Farmer and Crop Production [Blending]
+```{r}
+# Set up Optimization Equation and Solve
+lp <- make.lp(0,2) #Starting with 0 constraints and 2 variables
+set.objfn(lp, c(35,25))
+add.constraint(lp, c(2, 3), "<=", 60)
+add.constraint(lp, c(5, 2), "<=", 80)
+add.constraint(lp, c(3, 2), "<=", 60)
+add.constraint(lp, c(1, 2), "<=", 40)
+
+#Set objective Direction 
+invisible(lp.control(lp, sense = 'max'))
+print(lp)
+
+#Solve
+solve(lp)
+
+#Show Results
+#Get Max Profit:
+p <- get.objective(lp)
+paste0('Max Profit: $',p[1])
+
+#Get variables from maximizing
+v <- get.variables(lp)
+
+#Total units by Crop for maximum profit
+paste0('Bushels of Crop A Produced: ', v[1])
+paste0('Bushels of Crop B Produced: ', v[2])
+paste0('Total Crops Produced: ', v[1] + v[2])
+
+#Allocation of Resources to Crops
+paste0('Total Land Units: ', 2*v[1] + 3*v[2])
+paste0('Total Water Units: ', 5*v[1] + 2*v[2])
+paste0('Total Fertilizer Units: ', 3*v[1] + 2*v[2])
+paste0('Total Labor Units: ', 1*v[1] + 2*v[2])
+
+#Shadow Prices
+#Solve for additional resources needed
+d <- get.dual.solution(lp)
+d
+
+#Show interpretations
+paste0('Increasing one unit of land will increase max profit by: $', d[2])
+paste0('Increasing one unit of water will increase max profit by: $', d[3])
+paste0('Increasing one unit of fertilizer will make no change to max profit: ', d[4])
+paste0('Increasing one unit of labor will make no change to max profit: ', d[5])
+```
+
+__How much of each crop should be produced and what's the maximum profit obtained with this distribution?__
+
+10.91 Bushels of Crop A and 12.73 Bushels of Crop B should be produced in order to obtain the maximum profit of $700.
+
+__What allocation of resources to crops will maximize the farmer's profit?__
+
+The allocation of resources to crops for maximizing profit is as follows:
+
+_Total Land Units:_ 60
+
+_Total Water Units:_ 80
+
+_Total Fertilizer Units:_ 58.1818181818182
+
+_Total Labor Units:_ 36.3636363636364
+
+__Use shadow price analysis to determine what additional resources the farmer should seek?__
+
+The farmer should seek additional units of land and water, as these both will marginally increase max profit by $5.
+
+# B. Pizza Chain and Orders [Traveling Salesman]
+```{r}
+k <- "AIzaSyBAScaGsIEmn4c0Oeg026ZhHcU_VXVh50M"
+
+# TESTING STORE 1
+store1 <- c("700 E. Broad, Athens, GA", "15 Ruthwood Lane, Athens, GA", "100 Kentucky Circle, Athens, GA", "558 West Broad St, Athens, GA", "125 Greek Park Circle, Athens, GA", "1084 Prince Ave., Athens, GA")
+
+# Set 700 E. Broad as the starting point
+l <- length(store1) # number of locations is length of vector
+
+# set up distance as symmetric matrix
+distMat1 <- matrix(0,l,l) # initialize all cells to zero
+dim(distMat1) 
+
+# compute distances and enter into cells
+for(i in 1:(l-1)) { 
+  for(j in (i+1):l) { 
+    t <- google_distance(store1[i], store1[j], mode = c('driving'), simplify = TRUE, key = k)
+    tx <- t$rows$elements[[1]]$distance$value*conv_unit(1,'m','mi') # convert meters to miles
+    distMat1[i,j] <- tx
+    distMat1[j,i] <- tx
+    }
+}
+distMat1
+
+#solving the problem store1
+tsp1 <- TSP(distMat1,store1)
+tour1 <- solve_TSP(tsp1,method = "nearest_insertion", start = 1)
+len1 <- as.integer(tour_length(tour1))
+len1
+labels(tour1)
+
+
+# TESTING STORE 2
+store2 <- c("1650 S. Lumpkin, Athens, GA", "15 Ruthwood Lane, Athens, GA", "100 Kentucky Circle, Athens, GA", "558 West Broad St, Athens, GA", "125 Greek Park Circle, Athens, GA", "1084 Prince Ave., Athens, GA")
+
+# Set 700 E. Broad as the starting point
+l <- length(store2) # number of locations is length of vector
+
+# set up distance as symmetric matrix
+distMat2 <- matrix(0,l,l) # initialize all cells to zero
+dim(distMat2) 
+
+# compute distances and enter into cells
+for(i in 1:(l-1)) { 
+  for(j in (i+1):l) { 
+    t <- google_distance(store2[i], store2[j], mode = c('driving'), simplify = TRUE, key = k)
+    tx <- t$rows$elements[[1]]$distance$value*conv_unit(1,'m','mi') # convert meters to miles
+    distMat2[i,j] <- tx
+    distMat2[j,i] <- tx
+    }
+}
+distMat2
+
+#solving the problem store2
+tsp2 <- TSP(distMat2,store2)
+tour2 <- solve_TSP(tsp2,method = "nearest_insertion", start = 1)
+len2 <- as.integer(tour_length(tour2))
+len2
+labels(tour2)
+
+
+# TESTING STORE 3
+store3 <- c("1800 Epps Bridge Parkway, Athens, GA", "15 Ruthwood Lane, Athens, GA", "100 Kentucky Circle, Athens, GA", "558 West Broad St, Athens, GA", "125 Greek Park Circle, Athens, GA", "1084 Prince Ave., Athens, GA")
+
+# Set 700 E. Broad as the starting point
+l <- length(store3) # number of locations is length of vector
+
+# set up distance as symmetric matrix
+distMat3 <- matrix(0,l,l) # initialize all cells to zero
+dim(distMat3) 
+
+# compute distances and enter into cells
+for(i in 1:(l-1)) { 
+  for(j in (i+1):l) { 
+    t <- google_distance(store3[i], store3[j], mode = c('driving'), simplify = TRUE, key = k)
+    tx <- t$rows$elements[[1]]$distance$value*conv_unit(1,'m','mi') # convert meters to miles
+    distMat3[i,j] <- tx
+    distMat3[j,i] <- tx
+    }
+}
+distMat3
+
+#solving the problem store3
+tsp3 <- TSP(distMat3,store3)
+tour3 <- solve_TSP(tsp3,method = "nearest_insertion", start = 1)
+len3 <- as.integer(tour_length(tour3))
+len3
+labels(tour3)
+```
+
+
+__Which store should assigned the making of the five orders to minimize delivery distance?__
+
+_Answer:_ 700 E. Broad, Athens, GA
+
+__What is the shortest route in miles?__
+
+_Answer:_ 14 miles

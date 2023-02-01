@@ -1,0 +1,137 @@
+---
+title: 'R3 Assignment: Linear Regression & Time Series'
+author: "Daniel Saul & Michael Morgan"
+date: "10/26/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Central Park Data
+## Prepare Data & Files
+```{r}
+# Download required packages
+library(tidyverse)
+library(knitr)
+library(lubridate)
+library(tinytex)
+
+#Read and upload the Central Park data from the file
+centralPark <- read_csv("centralparktemps.csv")
+
+#Rename the columns in the data set for more readability
+centralPark <- centralPark %>%
+  rename(., Year = year) %>%
+  rename(., Month = month) %>%
+  rename(., Temperature = temperature)
+```
+
+## A. Linear Regression Plot & Statistics [January]
+```{r}
+# Extract and filter the mean temperature for January
+january <- centralPark %>%
+  filter(., Month == 1)
+
+# Create a scatter graph with a linear regression line for temperature and year
+ggplot(january, aes(Year, Temperature)) + 
+  ggtitle('Linear Regression for Temperature and Year in January') + 
+  geom_point() + geom_smooth(method = 'lm', formula=y~x)
+
+# Call the linear regression formula to show visual statistics
+linearRegJan <- lm(formula = january$Temperature ~ january$Year)
+summary(linearRegJan)
+```
+
+## B. Temperature & Year Conclusion [January]
+The relationship between mean temperature for January and year is significant. According to the linear regression model, the p-value is 0.036. Since this value is less than 0.05, the relationship is significant. We can conclude that there is strong evidence against the null hypothesis, and the results are most likely not random. The final conclusion is that there is a significant, linear relationship between mean temperature for January and year. As the years have gone up, so have the temperatures in January.
+
+## C. Linear Regression Plot & Statistics [July]
+```{r}
+# Extract and filter the mean temperature for July
+july <- centralPark %>%
+  filter(., Month == 7)
+
+# Create a scatter graph with a linear regression line for temperature and year
+ggplot(july, aes(Year, Temperature)) + 
+  ggtitle('Linear Regression for Temperature and Year in July') + 
+  geom_point() + geom_smooth(method = 'lm', formula=y~x)
+
+# Call the linear regression formula to show visual statistics
+linearRegJuly <- lm(formula = july$Temperature ~ july$Year)
+summary(linearRegJuly)
+```
+
+## D. Temperature & Year Conclusion [July]
+The relationship is similarly significant for July. According to the linear regression model, the p-value is 1.17e-06. Since this value is less than 0.05, the relationship is significant. We can conclude that there is strong evidence against the null hypothesis, and the results are most likely not random. The final conclusion is that there is a significant, linear relationship between mean temperature for July and year. As the years have gone up, so have the temperatures in July. Interestingly, the July regression model is more significant and accounts for more of the variance (higher adjusted R squared) than the January model.
+
+## E. Georgia EIA Time Series for Monthly MWh
+```{r}
+# Download required packages
+library(dygraphs)
+library(xts)
+library(eia)
+library(EIAdata)
+```
+
+### Time Series & Decomposed Time Series for Monthly MWh [Renewables]
+```{r}
+# your path name to your key
+key <- "5461465d2d3119a17400021116ee1ce7"
+eia_set_key(key, store = c("env", "options", "sysenv"))
+id <- "ELEC.GEN.AOR-GA-99.M"
+d <- eia_series(id)
+
+# Plotting a regular time series with a smoother for renewable data
+ggplot(d$data[[1]], aes(date, value)) + 
+  geom_point() + labs(y = str_to_title(d$units), title = d$name) + 
+  labs(x = 'Year', y = 'Thousand MWh') + 
+  ggtitle('Net Generation of Electricity by Renewables') + 
+  geom_line() + geom_smooth()
+
+# Plotting a decomposed time series with a smoother for renewable data
+p <- d$data[[1]]
+p <- p %>% arrange(year, month) #sort
+ts <- ts(p$value, start=c(2001,1),frequency=12)
+plot(ts, main = 'Net Generation of Electricity by Renewables (Time Series)', 
+     xlab = 'Time', ylab = 'Thousand MWh')
+
+#Plotting the decomposed time series
+d <- decompose(ts)
+plot(d)
+```
+
+### Time Series & Decomposed Time Series for Monthly MWh [Coal]
+```{r}
+# your path to the data
+id <- "ELEC.GEN.COW-GA-99.M"
+x <- eia_series(id)
+
+# Plotting a regular time series with a smoother for coal data
+ggplot(x$data[[1]], aes(date, value)) + geom_point() + 
+  labs(y = str_to_title(d$units), title = x$name) + 
+  labs(x = 'Year', y = 'Thousand MWh') + 
+  ggtitle('Net Generation of Electricity by Coal') + 
+  geom_line() + geom_smooth()
+
+# Plotting a decomposed time series with a smoother for coal data
+y <- x$data[[1]]
+y <- y %>% arrange(year, month) #sort
+ts1 <- ts(y$value, start=c(2001,1),frequency=12)
+plot(ts1, main = 'Net Generation of Electricity by Coal (Time Series)', 
+     xlab = 'Time', ylab = 'Thousand MWh')
+
+#Plotting the decomposed time series
+x <- decompose(ts1)
+plot(x)
+```
+
+#### Conclusion [Coal] & [Renewables]
+
+The net electricity generated by renewables in Georgia has rapidly increased over the past decade. Meanwhile, the net electricity generated by coal has significantly decreased since around 2008. Renewables have increased from around 300 thousand MWh (2005 - 2010 time period) to 900 thousand MWh today. Coal has decreased by a greater amount in that same time period. Coal electricity generation has decreased from around 7500 thousand MWh to about 1250 thousand MWh today. We can conclude that coal is being phased out at a higher volume and pace than the increase of renewable energy in the same time period.
+
+The decomposition of the renewable energy data shows a slowly increasing trend that sharply increases towards the 2015 - 2021 time period. There appears to be a seasonal trend where energy generated significantly increases in the summer months while decreasing in the winter months. This pattern may be due to the fact that there is more sunlight during the summer months, which will generate more solar energy. Finally, the randomness of the data stayed relatively steady over time, except for around 2000. During that time the renewable electricity generated was much higher than average around that time period. Overall, renewable energy generation has steadily gone up, with not much change due to randomness.
+
+The decomposition of the coal energy data shows a steadily decreasing trend since around 2008. The seasonal trend is more significant for coal than renewables. Electricity generated by coal also peaks in the summer months and decreases after. This is most likely due to the impact of consistent air conditioner use in those summer months. The randomness appears to play a larger role for coal over time, and this could be due to the rapid demand response coal can have. In contrast, renewables cannot suddenly upgrade the amount of electricity generated in response to increased demand. Overall, electricity generated by coal has steadily decreased over the past decade, with some changes due to seasonality and randomness.
+

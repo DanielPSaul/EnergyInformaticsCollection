@@ -1,0 +1,113 @@
+---
+title: 'R1 Assignment: Weather and Solar Radiation'
+author: "Daniel Saul & Michael Morgan"
+date: "9/21/2021"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## A. Reading the CSV Files
+```{r}
+# Loading required libraries
+library(tidyverse)
+library(knitr)
+library(lubridate)
+library(tinytex)
+
+# Reading CSV data files provided
+ATLweather <- read_csv("ATLweather.csv")
+electricityPrices <- read_csv("electricityprices.csv")
+SolarRadiationAthens <- read_csv("SolarRadiationAthens.csv")
+```
+
+## B. Computing correlation between temperature and electricity price
+```{r}
+# Make Time stamp column name consistent among other datasets
+electricityPrices <- rename(electricityPrices, Timestamp = timestamp)
+
+# Join weather and electricity prices
+weatherAndElectricity <- left_join(ATLweather, electricityPrices, by = "Timestamp")
+
+# Compute correlation between temperature and electricity price
+cor.test(weatherAndElectricity$Temperature,weatherAndElectricity$cost)
+```
+
+
+### Temperature and Electricity Price Conclusion
+With a correlation of 0.182, we can conclude that the relationship between temperature and electricity is positive, moves in the same direction, and the two variables are more independent as the correlation is closer to 0. We can see that the extremities of temperature, either low or high levels, shows that prices are typically higher. In simpler words, there is not much correlation between temperature and electricity price. A very small p-value shows statistical significance for the small amount of positive correlation there is. This assumes people are using more electricity in the winter and in the summer, when AC units are running high and higher house heating is needed in the winter.
+
+## C. Computing correlation between temperature and electricity price (August)
+```{r}
+# Create a new column for month for filtering
+weatherAndElectricity$month <- month(weatherAndElectricity$Timestamp)
+
+# Filter August data
+august <- weatherAndElectricity %>%
+  filter(., month == 8)
+
+# Compute correlation between temperature and cost for August
+cor.test(august$Temperature,august$cost)
+```
+
+### Temperature and Electricity Price Conclusion (August)
+With a correlation of 0.557, we can conclude that the relationship between temperature and electricity is positive, moves in the same direction, and the two variables are more related as the correlation is closer to 1. With only August included in the correlation, we can see the correlation increased. This means that the relationship between temperature and electricity price in August is stronger when we have just one weather type in one month (warm weather and temperatures). When temperature increase, homes use more electricity to cool their homes, increasing air conditioning costs.
+
+## D. Computing correlation between temperature and electricity price (January)
+```{r}
+# Filter January data
+january <- weatherAndElectricity %>%
+  filter(., month == 1)
+
+# Compute correlation between temperature and cost for January
+cor.test(january$Temperature,january$cost)
+```
+
+### Temperature and Electricity Price Conclusion (January)
+With a correlation of -0.397, we can conclude that the relationship between temperature and electricity is negative, moves in the same direction, and the two variables are more related with only January as the correlation is slightly closer to -1. This means that in the month of January, temperatures are typically lower since it is a winter month, requiring people to use more electricity to heat homes, increasing costs. As temperature goes down, electricity prices go up.
+
+## E. Solar Radiation Summary Statistics
+```{r}
+# Compute summary statistics for Solar Watts in the Solar Radiation data set
+summary(SolarRadiationAthens)
+```
+Minimum: 0.0 watts/m2
+Average: 193.2 watts/m2
+Maximum: 1457.0 watts/m2
+
+## F. August and January Energy Generation
+```{r}
+# Create a new column for month for filtering
+SolarRadiationAthens$month <- month(SolarRadiationAthens$TimeStamp)
+
+# Create a new column for day for filtering and grouping
+SolarRadiationAthens$day <- day(SolarRadiationAthens$TimeStamp)
+
+# Filter August out of Solar Radiation
+augustMonth <- SolarRadiationAthens %>%
+  filter(., month == 8)
+
+# Filter January out of Solar Radiation
+januaryMonth <- SolarRadiationAthens %>%
+  filter(., month == 1) 
+
+# Compute the average Solar Watts for August and January
+avgAugust <- mean(augustMonth$SolarWatt)
+avgJanuary <- mean(januaryMonth$SolarWatt)
+
+# Compute the kWh on average each day in August
+dailyAugust <- (avgAugust*24*25*0.2)/(1000)
+dailyAugust
+
+# Compute the kWh on average each day in January
+dailyJanuary <- (avgJanuary*24*25*0.2)/(1000)
+dailyJanuary
+```
+### Average kWh Each Day in August and January
+__24.564 kWh__ generated on average each day in August and __14.432 kWh__ generated on average each day in January.

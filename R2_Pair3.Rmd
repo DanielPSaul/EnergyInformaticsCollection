@@ -1,0 +1,120 @@
+---
+title: 'R2 Assignment: Weather & Price Relationships'
+author: "Daniel Saul & Michael Morgan"
+date: "10/12/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Electricity and Weather Data
+## Prepare Data & Files
+```{r}
+# Load required packages
+library(tidyverse)
+library(knitr)
+library(lubridate)
+library(tinytex)
+library(gt)
+
+# Read CSV files
+ATLweather <- read_csv("ATLweather.csv")
+electricityPrices <- read_csv("electricityprices.csv")
+SolarRadiationAthens <- read_csv("SolarRadiationAthens.csv")
+
+# Make Time stamp column name consistent among other datasets
+electricityPrices <- rename(electricityPrices, Timestamp = timestamp)
+
+# Merge Atlanta Weather and Electricity Price Tables
+weatherAndElectricity <- left_join(ATLweather, electricityPrices, by = "Timestamp")
+
+# Create a new column (for weather) for month for filtering
+weatherAndElectricity$month <- month(weatherAndElectricity$Timestamp)
+
+# Create a new column (for radiation) for month for filtering
+SolarRadiationAthens$month <- month(SolarRadiationAthens$TimeStamp)
+
+# Create a new column for day for filtering and grouping
+SolarRadiationAthens$day <- day(SolarRadiationAthens$TimeStamp)
+```
+
+## A. Relationship between Temperature & Electricity Price
+```{r}
+# Graph the relationship between temperature and electricity price with a smoother
+ggplot(weatherAndElectricity, aes(Temperature, cost)) + geom_point() + geom_smooth() + ylab("Cost ($)")
+```
+
+## B. Relationship between Temperature & Electricity Price for Winter (January to March)
+```{r}
+# Filter for the winter months
+winter <- weatherAndElectricity %>%
+  filter(month >= 1 & month <= 3)
+
+# Graph the relationship between temperature and electricity price with a smoother (winter)
+ggplot(winter, aes(Temperature, cost)) + geom_point() + geom_smooth() + ylab("Cost ($)")
+```
+
+## C. Relationship between Temperature & Electricity Price for Summer (July to September)
+```{r}
+# Filter for the summer months
+summer <- weatherAndElectricity %>%
+  filter(month >= 7 & month <= 9)
+
+# Graph the relationship between temperature and electricity price with a smoother (summer)
+ggplot(summer, aes(Temperature, cost)) + geom_point() + geom_smooth() + ylab("Cost ($)")
+```
+
+## D. What do we conclude from from sections A, B, and C?
+We can conclude that at both extremely low and high temperatures, electricity prices seem to be at their higher, or in other words, the most expensive. From around 25 degrees to 80 degrees Fahrenheit, electricity prices are steady at their lower points. However, when we enter the winter months from January to March, we see a negative relationship of the line as electricity prices drop as the temperature increases. For the summer months of July to September, electricity price increases in a positive relationship as temperature increases, so does cost. In addition, there are a few outliers during the summer months above 100 degrees Fahrenheit. Ultimately, we conclude that electricity prices are at their highest in the summer months compared to the winter months.
+
+## E. Relationship between Temperature & Electricity Price for Week vs. Weekend
+```{r}
+# Create a new column labeling day of the week
+weatherAndElectricity$DayWeek <- wday(weatherAndElectricity$Timestamp, label = FALSE)
+
+# Mutate column to label either Week or Weekend
+weatherAndElectricity <- weatherAndElectricity %>%
+  mutate(DayType = ifelse(DayWeek == 7 | DayWeek == 1, "Weekend", "Week"))
+
+# Create visualization for separate smoothers for week or weekend
+ggplot(weatherAndElectricity, mapping = aes(Temperature, cost)) + geom_point() + geom_smooth(aes(color=DayType)) + ylab("Cost ($)")
+```
+
+### Conclusion
+When comparing electricity prices and temperature for the week and weekend, we can conclude that even when temperatures are either increasing or decreasing drastically, the weekend typically consists of lower electricity prices than the week. However, in the summer months when temperatures are higher, we can see a spike in weekend electricity prices. The week days tend to have much higher electricity prices in the extremities of summer and winter months. We must also acknowledge that there are more values in are data that are labeled as week than weekend. This is explained by there being a greater number of week days to weekend days.
+
+# Solar Radiation Data
+## A. Average Electricity Generated in a Day by Month
+```{r}
+# Create a new table to show the average solar watts generated per month and kWh
+averageMonth <- SolarRadiationAthens %>%
+  group_by(month) %>%
+  summarise(AverageByMonth = mean(SolarWatt)) %>%
+  mutate(., AverageByDay = (AverageByMonth*24*25*0.2)/(1000))
+
+# Plot the average kWh with a column chart generated per month per day
+electricityPlot <- ggplot(averageMonth, aes(month, AverageByDay)) + geom_col()
+
+# Change the x-axis of the plot to show the months consecutively
+electricityPlot + scale_x_discrete(limits = c("1","2","3","4","5","6","7","8","9","10","11","12")) + xlab("Month") + ylab("Daily Average")
+
+```
+
+## B. Tabular Form Report of Average kWh per Day per Month
+```{r}
+#Report the data graphed in the previous problem in tabular form
+f <- averageMonth %>%
+  gt() %>%
+   tab_header(title = "Tabular Report of Avg. kWh") %>%
+  cols_label(month = "Month", AverageByMonth = "Monthly Average", AverageByDay = "Daily Average")
+
+#Formatting decimal places
+fmt_number(
+  f,
+  columns = c(AverageByMonth,AverageByDay),
+  decimals = 2
+  )
+```
+
